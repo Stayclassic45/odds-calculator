@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odds Rollover Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#d5dbe0,#16191c);--panel:light-dark(#ffffff,#1f2327);--ink:light-dark(#0b0d0f,#eef1f3);--muted:light-dark(#4a535b,#9aa4ad);--line:light-dark(#b9c1c8,#2f353b);--red:#e8251a;--ok:light-dark(#0b0d0f,#ffffff)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.big{font-family:"Inter Tight",Inter,sans-serif}
+.band{padding:clamp(20px,4vw,48px) max(5vw,16px);max-width:1240px;margin:0 auto}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.05;margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 22px;max-width:62ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:18px}
+@media(max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+label{display:block;font-weight:600;font-size:14px;margin:0 0 6px}
+.field{margin-bottom:16px}
+input[type=number]{width:100%;font:500 18px Inter,sans-serif;padding:11px 12px;min-height:46px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips button{font:500 14px Inter,sans-serif;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{font:600 14px Inter,sans-serif;min-height:46px;border:0;background:transparent;color:var(--ink);cursor:pointer;padding:6px}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--panel)}
+.hint{font-size:13px;color:var(--muted);margin-top:6px}
+.read{display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+.k{font-size:14px;color:var(--muted);font-weight:500}
+.big{font-size:clamp(34px,7vw,64px);line-height:1;font-weight:700;letter-spacing:-.02em;overflow-wrap:anywhere}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{border-top:1px solid var(--line);padding-top:10px}
+.stat b{display:block;font:700 22px "Inter Tight",sans-serif;white-space:nowrap}
+.risk b{color:var(--red)}
+.meter{height:12px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:8px}
+.meter i{display:block;height:100%;background:var(--red);transition:width .3s}
+@media(prefers-reduced-motion:reduce){.meter i{transition:none}}
+h2{font-size:22px;margin:0 0 12px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:13px;color:var(--muted);font-weight:600}
+th:first-child,td:first-child{text-align:left}
+tr.last td{font-weight:700}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+footer{color:var(--muted);font-size:13px}
+footer a{color:inherit}
+</style>
+</head>
+<body>
+<main class="band">
+  <h1>Odds rollover calculator</h1>
+  <p class="sub">Type your stake, the odds you want each day and how many days. The numbers update as you type.</p>
+
+  <div class="grid">
+    <section class="card" aria-label="Inputs">
+      <div class="field">
+        <label for="stake">Starting stake</label>
+        <input id="stake" type="number" min="1" step="100" inputmode="decimal" value="10000">
+      </div>
+      <div class="field">
+        <label for="odds">Total odds per day</label>
+        <input id="odds" type="number" min="1.01" step="0.05" inputmode="decimal" value="5">
+        <div class="chips" id="oddsChips"></div>
+      </div>
+      <div class="field">
+        <label for="days">Number of days</label>
+        <input id="days" type="number" min="1" max="60" step="1" inputmode="numeric" value="6">
+        <div class="chips" id="dayChips"></div>
+      </div>
+      <div class="field">
+        <label>How you bet</label>
+        <div class="seg" role="group" aria-label="Betting method">
+          <button id="mRoll" type="button" aria-pressed="true">Roll everything over</button>
+          <button id="mFix" type="button" aria-pressed="false">Same stake daily</button>
+        </div>
+        <div class="hint" id="modeHint"></div>
+      </div>
+      <div class="field">
+        <label for="cut">Bookmaker's cut (%)</label>
+        <input id="cut" type="number" min="0" max="30" step="1" inputmode="decimal" value="5">
+        <div class="hint">The bookmaker's built-in profit. Around 5% is typical for single bets; combos are often higher.</div>
+      </div>
+    </section>
+
+    <section class="card read" aria-live="polite">
+      <div>
+        <div class="k" id="bigLabel">If you win every day</div>
+        <div class="big" id="big">0</div>
+        <div class="hint" id="bigSub"></div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div>
+        <div class="k">Chance of winning every day</div>
+        <div class="meter"><i id="meter" style="width:0"></i></div>
+        <div class="hint" id="meterTxt"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<section class="band" style="padding-top:0">
+  <div class="card">
+    <h2>Day by day</h2>
+    <div class="scroll"><table id="tbl"></table></div>
+    <p class="note">Win chances are estimates: 1 ÷ odds, minus the bookmaker's cut. Real chances depend on the games you pick.</p>
+  </div>
+</section>
+
+<footer class="band" style="padding-top:0">
+  Bet only what you can afford to lose. Free, confidential help: <a href="https://www.gamblingcare.ie" rel="noopener">GamblingCare.ie</a>.
+  This page stores your last inputs only in your own browser.
+</footer>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const fmt=n=>!isFinite(n)?'—':n>=1e15?n.toExponential(2):Math.round(n).toLocaleString('en-GB');
+const pct=p=>p>=0.01?(p*100).toFixed(1)+'%':p>=0.0001?(p*100).toFixed(3)+'%':'under 0.01%';
+const oneIn=p=>p<=0?'—':'1 in '+fmt(1/p);
+let mode='roll';
+
+const oddsPresets=[1.5,2,3,5,10];
+const dayPresets=[3,6,12];
+$('oddsChips').innerHTML=oddsPresets.map(v=>`<button type="button" data-v="${v}">${v}</button>`).join('');
+$('dayChips').innerHTML=dayPresets.map(v=>`<button type="button" data-v="${v}">${v} days</button>`).join('');
+
+// Chance of winning at least k of n days (binomial formula)
+function binomAtLeast(n,k,p){let s=0;for(let i=k;i<=n;i++){s+=comb(n,i)*Math.pow(p,i)*Math.pow(1-p,n-i)}return Math.min(1,s)}
+function comb(n,k){let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return r}
+
+function read(){
+  const stake=Math.max(0,parseFloat($('stake').value)||0);
+  const odds=Math.max(1.01,parseFloat($('odds').value)||1.01);
+  const days=Math.min(60,Math.max(1,Math.round(parseFloat($('days').value)||1)));
+  const cut=Math.min(30,Math.max(0,parseFloat($('cut').value)||0));
+  // Chance of winning one day = (1 ÷ odds) × (1 − cut ÷ 100)
+  return {stake,odds,days,cut,p:Math.min(1,(1/odds)*(1-cut/100))};
+}
+
+function render(){
+  const {stake,odds,days,p}=read();
+  try{localStorage.setItem('oddsCalc',JSON.stringify({s:$('stake').value,o:$('odds').value,d:$('days').value,c:$('cut').value,mode}))}catch(e){}
+  for(const b of document.querySelectorAll('#oddsChips button'))b.setAttribute('aria-pressed',String(+b.dataset.v===odds));
+  for(const b of document.querySelectorAll('#dayChips button'))b.setAttribute('aria-pressed',String(+b.dataset.v===days));
+  $('mRoll').setAttribute('aria-pressed',String(mode==='roll'));
+  $('mFix').setAttribute('aria-pressed',String(mode==='fix'));
+
+  // Chance of winning every day = one-day chance to the power of the number of days
+  const allWin=Math.pow(p,days);
+  $('meter').style.width=Math.max(allWin*100,allWin>0?0.6:0)+'%';
+  $('meterTxt').textContent=`${pct(allWin)} — about ${oneIn(allWin)}. Each day on its own: ${pct(p)} (${oneIn(p)}).`;
+
+  let rows='';
+  if(mode==='roll'){
+    $('modeHint').textContent='All winnings go into the next day\'s bet. One loss and everything is gone.';
+    // Roll-over result = stake × odds^days; any loss = 0
+    const final=stake*Math.pow(odds,days);
+    $('bigLabel').textContent=`If you win all ${days} days`;
+    $('big').textContent=fmt(final);
+    $('bigSub').textContent=`From ${fmt(stake)} at odds of ${odds} per day.`;
+    $('stats').innerHTML=[
+      ['Profit',fmt(final-stake)],
+      ['Total odds needed',fmt(Math.pow(odds,days))],
+      ['If you lose any day',fmt(0)]
+    ].map((s,i)=>`<div class="stat${i===2?' risk':''}"><span class="k">${s[0]}</span><b>${s[1]}</b></div>`).join('');
+    rows='<thead><tr><th>Day</th><th>Bet</th><th>Money if you win</th><th>Chance you\'re still in</th></tr></thead><tbody>';
+    let m=stake;
+    for(let d=1;d<=days;d++){const bet=m;m=m*odds;rows+=`<tr class="${d===days?'last':''}"><td>Day ${d}</td><td>${fmt(bet)}</td><td>${fmt(m)}</td><td>${pct(Math.pow(p,d))}</td></tr>`}
+  }else{
+    $('modeHint').textContent='You bet the same amount each day and keep winnings aside. A loss costs only that day\'s stake.';
+    // Total staked = stake × days; each win pays stake × odds; break-even wins rounded up
+    const staked=stake*days,winPay=stake*odds,breakEven=Math.ceil(staked/winPay-1e-9);
+    $('bigLabel').textContent=`If you win all ${days} days`;
+    $('big').textContent=fmt(winPay*days);
+    $('bigSub').textContent=`Back from ${fmt(staked)} staked in total (${fmt(stake)} a day).`;
+    $('stats').innerHTML=[
+      ['Profit if all win',fmt(winPay*days-staked)],
+      ['Wins needed to not lose',breakEven<=days?`${breakEven} of ${days}`:'Not possible'],
+      ['Chance of that',pct(breakEven<=days?binomAtLeast(days,breakEven,p):0)],
+      ['Most you can lose',fmt(staked)]
+    ].map((s,i)=>`<div class="stat${i===3?' risk':''}"><span class="k">${s[0]}</span><b>${s[1]}</b></div>`).join('');
+    rows='<thead><tr><th>Wins</th><th>Money back</th><th>Profit / loss</th><th>Chance of exactly this</th></tr></thead><tbody>';
+    for(let w=days;w>=0;w--){const back=winPay*w,pl=back-staked;rows+=`<tr><td>${w} of ${days}</td><td>${fmt(back)}</td><td style="color:${pl<0?'var(--red)':'inherit'}">${pl<0?'−':'+'}${fmt(Math.abs(pl))}</td><td>${pct(comb(days,w)*Math.pow(p,w)*Math.pow(1-p,days-w))}</td></tr>`}
+  }
+  $('tbl').innerHTML=rows+'</tbody>';
+}
+
+// Remember the last inputs in this browser
+try{const s=JSON.parse(localStorage.getItem('oddsCalc')||'null');if(s){$('stake').value=s.s;$('odds').value=s.o;$('days').value=s.d;$('cut').value=s.c;mode=s.mode==='fix'?'fix':'roll'}}catch(e){}
+
+for(const id of ['stake','odds','days','cut'])$(id).addEventListener('input',render);
+$('oddsChips').addEventListener('click',e=>{const b=e.target.closest('button');if(b){$('odds').value=b.dataset.v;render()}});
+$('dayChips').addEventListener('click',e=>{const b=e.target.closest('button');if(b){$('days').value=b.dataset.v;render()}});
+$('mRoll').addEventListener('click',()=>{mode='roll';render()});
+$('mFix').addEventListener('click',()=>{mode='fix';render()});
+render();
+}
+</script>
+</body>
+</html>
